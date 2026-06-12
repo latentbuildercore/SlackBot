@@ -9,71 +9,85 @@ const app = new App({
   socketMode: true
 });
 
-app.command("/dsb-ping", async ({ command, ack, respond }) => {
-  const start = Date.now();
-  await ack();
-  const latency = Date.now() - start;
-  await respond({ text: `Pong!\nLatency: ${latency}ms` });
+/* ---------------- GLOBAL ERROR HANDLER ---------------- */
+app.error(async (error) => {
+  console.error("SLACK BOLT ERROR:", error);
 });
 
-(async () => {
-  await app.start();
-  console.log("bot is running!");
-})();
-
+/* ---------------- HELP COMMAND ---------------- */
 app.command("/dsb-help", async ({ ack, respond }) => {
   await ack();
-  await respond({
-    text:
-`Available Commands:
+
+  try {
+    await respond({
+      response_type: "ephemeral",
+      text:
+`📌 Available Commands:
+
 /dsb-ping - Check bot latency
 /dsb-catfact - Get a cat fact
 /dsb-joke - Get a random joke
-/dsb-apod - Get NASA's Astronomy Picture of the Day
-/dsb-mars - Get a random Mars rover photo
-/dsb-asteroid - Get info on a random near-Earth asteroid
-/dsb-launches - Get info on upcoming space launches
-/dsb-iss - Get current position of the ISS
-/dsb-astronauts - Get current astronauts in space`
-  });
+/dsb-apod - NASA Astronomy Picture
+/dsb-mars - Mars rover photo
+/dsb-asteroid - Near-Earth asteroid info
+/dsb-launches - Upcoming space launches
+/dsb-iss - ISS position
+/dsb-astronauts - People in space`
+    });
+  } catch (err) {
+    console.error("HELP COMMAND ERROR:", err);
+  }
 });
 
+/* ---------------- PING ---------------- */
+app.command("/dsb-ping", async ({ command, ack, respond }) => {
+  await ack();
+
+  const start = Date.now();
+  await respond({ text: "Pinging..." });
+
+  const latency = Date.now() - start;
+
+  await respond({ text: `🏓 Pong!\nLatency: ${latency}ms` });
+});
+
+/* ---------------- CAT FACT ---------------- */
 app.command("/dsb-catfact", async ({ ack, respond }) => {
   await ack();
 
   try {
-    const response = await axios.get("https://catfact.ninja/fact");
-    await respond({ text: `Cat Fact:\n${response.data.fact}` });
+    const res = await axios.get("https://catfact.ninja/fact");
+    await respond({ text: `🐱 Cat Fact:\n${res.data.fact}` });
   } catch (err) {
-    await respond({ text: "Failed to fetch a cat fact." });
+    console.error(err);
+    await respond({ text: "Failed to fetch cat fact." });
   }
 });
 
+/* ---------------- JOKE ---------------- */
 app.command("/dsb-joke", async ({ ack, respond }) => {
   await ack();
 
   try {
-    const response = await axios.get("https://official-joke-api.appspot.com/random_joke");
+    const res = await axios.get("https://official-joke-api.appspot.com/random_joke");
     await respond({
-      text:
-`${response.data.setup}
-
-${response.data.punchline}`
+      text: `😂 Joke:\n\n${res.data.setup}\n\n${res.data.punchline}`
     });
-  } catch (err) {
-    await respond({ text: "Failed to fetch a joke." });
+  } catch {
+    await respond({ text: "Failed to fetch joke." });
   }
 });
 
+/* ---------------- NASA APOD ---------------- */
 app.command("/dsb-apod", async ({ ack, respond }) => {
   await ack();
 
   try {
-    const response = await axios.get(
+    const res = await axios.get(
       `https://api.nasa.gov/planetary/apod?api_key=${process.env.NASA_API_KEY}`
     );
 
-    const data = response.data;
+    const data = res.data;
 
     await respond({
       blocks: [
@@ -91,79 +105,84 @@ app.command("/dsb-apod", async ({ ack, respond }) => {
         }
       ]
     });
-  } catch (err) {
-    await respond({ text: "Failed to fetch APOD data 🚀" });
+  } catch {
+    await respond({ text: "Failed to fetch APOD 🚀" });
   }
 });
 
+/* ---------------- MARS ---------------- */
 app.command("/dsb-mars", async ({ ack, respond }) => {
   await ack();
 
   try {
-    const response = await axios.get(
+    const res = await axios.get(
       `https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?sol=1000&api_key=${process.env.NASA_API_KEY}`
     );
 
-    const photos = response.data.photos;
+    const photos = res.data.photos;
     const photo = photos[Math.floor(Math.random() * photos.length)];
 
     await respond({
       text:
-`🔴 *Mars Rover Photo*
+`🔴 Mars Rover Photo
 
 Camera: ${photo.camera.full_name}
-
 📷 ${photo.img_src}`
     });
-
-  } catch (err) {
+  } catch {
     await respond({ text: "Failed to fetch Mars photo 🚀" });
   }
 });
 
+/* ---------------- ASTEROID ---------------- */
 app.command("/dsb-asteroid", async ({ ack, respond }) => {
   await ack();
 
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    const response = await axios.get(
+    const res = await axios.get(
       `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${process.env.NASA_API_KEY}`
     );
 
-    const asteroids = response.data.near_earth_objects[today];
-    const asteroid = asteroids[Math.floor(Math.random() * asteroids.length)];
+    const list = res.data.near_earth_objects[today];
+    const asteroid = list[Math.floor(Math.random() * list.length)];
 
     await respond({
       text:
-`☄️ *${asteroid.name}*
+`☄️ ${asteroid.name}
 
-Estimated size: ${Math.round(
+Max size: ${Math.round(
   asteroid.estimated_diameter.meters.estimated_diameter_max
 )} meters`
     });
-
-  } catch (err) {
+  } catch {
     await respond({ text: "Failed to fetch asteroid data 🚀" });
   }
 });
 
-app.command("/dsb-launches",async ({ ack, respond }) => {
+/* ---------------- LAUNCHES ---------------- */
+app.command("/dsb-launches", async ({ ack, respond }) => {
   await ack();
 
   try {
-    const res = await axios.get("https://1l.thespacedevs.com/2.2.0/launch/upcoming/?limit=3");
+    const res = await axios.get(
+      "https://1l.thespacedevs.com/2.2.0/launch/upcoming/?limit=3"
+    );
+
     const launches = res.data.results;
+
     const text = launches.map(l =>
-      `🚀 *${l.name}*\n📅 ${l.net}\n📍 ${l.pad.location.name}`
+      `🚀 ${l.name}\n📅 ${l.net}\n📍 ${l.pad.location.name}`
     ).join("\n\n");
 
-      await respond({ text });
-  } catch (err) {
+    await respond({ text });
+  } catch {
     await respond("Failed to fetch launches 🚀");
   }
 });
 
+/* ---------------- ISS ---------------- */
 app.command("/dsb-iss", async ({ ack, respond }) => {
   await ack();
 
@@ -174,7 +193,7 @@ app.command("/dsb-iss", async ({ ack, respond }) => {
 
     await respond({
       text:
-`🛰️ ISS Current Position:
+`🛰️ ISS Position:
 Latitude: ${pos.latitude}
 Longitude: ${pos.longitude}`
     });
@@ -183,6 +202,7 @@ Longitude: ${pos.longitude}`
   }
 });
 
+/* ---------------- ASTRONAUTS ---------------- */
 app.command("/dsb-astronauts", async ({ ack, respond }) => {
   await ack();
 
@@ -191,18 +211,14 @@ app.command("/dsb-astronauts", async ({ ack, respond }) => {
 
     const names = res.data.people.map(p => `👨‍🚀 ${p.name}`).join("\n");
 
-    await respond(`🌍 People in space now:\n\n${names}`);
+    await respond(`🌍 People in space:\n\n${names}`);
   } catch {
     await respond("Failed to fetch astronauts 🚀");
   }
 });
 
 
-    
-
-
-
-
-
-
-
+(async () => {
+  await app.start();
+  console.log("🚀 Slack bot is running!");
+})();
