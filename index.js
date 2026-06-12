@@ -28,7 +28,13 @@ app.command("/dsb-help", async ({ ack, respond }) => {
 `Available Commands:
 /dsb-ping - Check bot latency
 /dsb-catfact - Get a cat fact
-/dsb-joke - Get a random joke`
+/dsb-joke - Get a random joke
+/dsb-apod - Get NASA's Astronomy Picture of the Day
+/dsb-mars - Get a random Mars rover photo
+/dsb-asteroid - Get info on a random near-Earth asteroid
+/dsb-launches - Get info on upcoming space launches
+/dsb-iss - Get current position of the ISS
+/dsb-astronauts - Get current astronauts in space`
   });
 });
 
